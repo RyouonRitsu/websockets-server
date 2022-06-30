@@ -25,10 +25,34 @@ fun Application.configureSockets() {
             connections += thisConnection
             try {
                 send("You are connected! There are ${connections.count()} users here.")
+                send("Do you need to set your nick? (y/n)")
+                var flag = true
+                for (frame in incoming) {
+                    when (frame) {
+                        is Frame.Text -> {
+                            if (flag) {
+                                val confirm = frame.readText()
+                                if (confirm in listOf("y", "Y", "yes", "Yes", "YES")) {
+                                    flag = false
+                                    send("What is your nick?")
+                                    continue
+                                } else break
+                            } else {
+                                thisConnection.nick = frame.readText()
+                                send("Everything is ready! welcome, ${thisConnection.nick}!")
+                                break
+                            }
+                        }
+                        else -> {
+                            send("Only text frames are accepted!${if (flag) "" else " What is your nick?"}")
+                        }
+                    }
+                }
+                if (flag) send("Ok! Welcome!")
                 for (frame in incoming) {
                     frame as? Frame.Text ?: continue
                     val receivedText = frame.readText()
-                    val textWithUsername = "[${thisConnection.name}]: $receivedText"
+                    val textWithUsername = "[${thisConnection.nick ?: thisConnection.name}]: $receivedText"
                     connections.forEach {
                         it.session.send(textWithUsername)
                     }
