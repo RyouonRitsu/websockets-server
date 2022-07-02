@@ -33,7 +33,7 @@ fun Application.configureSockets() {
                 )
                 setNick(thisConnection, connections)
                 connections.filterNot { it == thisConnection }.forEach {
-                    it.session.send("sys: new user '${thisConnection.nick ?: thisConnection.id}' connected!")
+                    it.session.send("[system]: new user '${thisConnection.nick ?: thisConnection.id}' connected!")
                 }
                 broadcast(thisConnection, connections)
             } catch (e: Exception) {
@@ -42,7 +42,7 @@ fun Application.configureSockets() {
                 println("Removing $thisConnection!")
                 connections -= thisConnection
                 connections.forEach {
-                    it.session.send("sys: user '${thisConnection.nick ?: thisConnection.id}' disconnected!")
+                    it.session.send("[system]: user '${thisConnection.nick ?: thisConnection.id}' disconnected!")
                 }
             }
         }
@@ -59,7 +59,7 @@ fun Application.configureSockets() {
                 )
                 setNick(thisConnection, connections)
                 connections.filterNot { it == thisConnection }.forEach {
-                    it.session.send("sys: new user '${thisConnection.nick ?: thisConnection.id}' connected!")
+                    it.session.send("[system]: new user '${thisConnection.nick ?: thisConnection.id}' connected!")
                 }
                 send(
                     "Now type the ID of the user or a part of his/her nick you want to whisper to." +
@@ -96,7 +96,7 @@ fun Application.configureSockets() {
                 println("Removing $thisConnection!")
                 connections -= thisConnection
                 connections.forEach {
-                    it.session.send("sys: user '${thisConnection.nick ?: thisConnection.id}' disconnected!")
+                    it.session.send("[system]: user '${thisConnection.nick ?: thisConnection.id}' disconnected!")
                 }
             }
         }
