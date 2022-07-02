@@ -27,8 +27,10 @@ fun Application.configureSockets() {
             val thisConnection = Connection(this)
             connections += thisConnection
             try {
-                send("You are connected! There are ${connections.count()} users here.\n" +
-                        "Please remember your ID is ${thisConnection.id}, others can use this to find you.")
+                send(
+                    "You are connected! There are ${connections.count()} users here.\n" +
+                            "Please remember your ID is ${thisConnection.id}, others can use this to find you."
+                )
                 setNick(thisConnection, connections)
                 broadcast(thisConnection, connections)
             } catch (e: Exception) {
@@ -45,11 +47,15 @@ fun Application.configureSockets() {
             connections += thisConnection
             customizedConnections += thisConnection
             try {
-                send("You are connected! There are ${connections.count()} users here.\n" +
-                        "Please remember your ID is ${thisConnection.id}, others can use this to find you.")
+                send(
+                    "You are connected! There are ${connections.count()} users here.\n" +
+                            "Please remember your ID is ${thisConnection.id}, others can use this to find you."
+                )
                 setNick(thisConnection, connections)
-                send("Now type the ID of the user or a part of his/her nick you want to whisper to." +
-                        "Enter '.complete' to end adding users.")
+                send(
+                    "Now type the ID of the user or a part of his/her nick you want to whisper to." +
+                            "Enter '.complete' to end adding users."
+                )
                 for (frame in incoming) {
                     when (frame) {
                         is Frame.Text -> {
@@ -61,18 +67,20 @@ fun Application.configureSockets() {
                                 val targetConnection = connections.firstOrNull {
                                     it.id == receivedText.toIntOrNull() || it.nick?.contains(receivedText) == true
                                 }
-                                if (targetConnection == null) {
-                                    send("User not found. Please try again!")
-                                } else {
-                                    customizedConnections += targetConnection
-                                    send("User ${targetConnection.nick ?: targetConnection.name} added!")
+                                when (targetConnection) {
+                                    null -> send("User not found. Please try again!")
+                                    in customizedConnections -> send("This user is already in this conversation!")
+                                    else -> {
+                                        customizedConnections += targetConnection
+                                        send("User ${targetConnection.nick ?: targetConnection.name} added!")
+                                    }
                                 }
                             }
                         }
                         else -> send("Only text frames are accepted! Please try again!")
                     }
                 }
-                broadcast(thisConnection, customizedConnections)
+                broadcast(thisConnection, customizedConnections, whisper = true)
             } catch (e: Exception) {
                 println(e.localizedMessage)
             } finally {
@@ -115,11 +123,16 @@ suspend fun DefaultWebSocketServerSession.setNick(thisConnection: Connection, co
     if (flag) send("Ok! Welcome!")
 }
 
-suspend fun DefaultWebSocketServerSession.broadcast(thisConnection: Connection, connections: MutableSet<Connection>) {
+suspend fun DefaultWebSocketServerSession.broadcast(
+    thisConnection: Connection,
+    connections: MutableSet<Connection>,
+    whisper: Boolean = false
+) {
     for (frame in incoming) {
         frame as? Frame.Text ?: continue
         val receivedText = frame.readText()
-        val textWithUsername = "[${thisConnection.nick ?: thisConnection.name}]: $receivedText"
+        val textWithUsername =
+            "${if (whisper) "*Whisper* " else ""}[${thisConnection.nick ?: thisConnection.name}]: $receivedText"
         connections.forEach {
             it.session.send(textWithUsername)
         }
