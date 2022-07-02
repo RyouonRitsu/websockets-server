@@ -28,35 +28,7 @@ fun Application.configureSockets() {
             connections += thisConnection
             try {
                 send("You are connected! There are ${connections.count()} users here.")
-                send("Do you need to set your nick? (y/n)")
-                var flag = true
-                for (frame in incoming) {
-                    when (frame) {
-                        is Frame.Text -> {
-                            if (flag) {
-                                val confirm = frame.readText()
-                                if (confirm in listOf("y", "Y", "yes", "Yes", "YES")) {
-                                    flag = false
-                                    send("What is your nick?")
-                                    continue
-                                } else break
-                            } else {
-                                val nick = frame.readText()
-                                if (connections.none { it.nick == nick }) thisConnection.nick = frame.readText()
-                                else {
-                                    send("Nickname already taken! Please try another one.")
-                                    continue
-                                }
-                                send("Everything is ready! Welcome, ${thisConnection.nick}!")
-                                break
-                            }
-                        }
-                        else -> {
-                            send("Only text frames are accepted!${if (flag) "" else " What is your nick?"}")
-                        }
-                    }
-                }
-                if (flag) send("Ok! Welcome!")
+                setNick(thisConnection, connections)
                 for (frame in incoming) {
                     frame as? Frame.Text ?: continue
                     val receivedText = frame.readText()
@@ -72,5 +44,40 @@ fun Application.configureSockets() {
                 connections -= thisConnection
             }
         }
+        webSocket("/whisper") {
+
+        }
     }
+}
+
+suspend fun DefaultWebSocketServerSession.setNick(thisConnection: Connection, connections: MutableSet<Connection>) {
+    send("Do you need to set your nick? (y/n)")
+    var flag = true
+    for (frame in incoming) {
+        when (frame) {
+            is Frame.Text -> {
+                if (flag) {
+                    val confirm = frame.readText()
+                    if (confirm in listOf("y", "Y", "yes", "Yes", "YES")) {
+                        flag = false
+                        send("What is your nick?")
+                        continue
+                    } else break
+                } else {
+                    val nick = frame.readText()
+                    if (connections.none { it.nick == nick }) thisConnection.nick = frame.readText()
+                    else {
+                        send("Nickname already taken! Please try another one.")
+                        continue
+                    }
+                    send("Everything is ready! Welcome, ${thisConnection.nick}!")
+                    break
+                }
+            }
+            else -> {
+                send("Only text frames are accepted!${if (flag) "" else " What is your nick?"}")
+            }
+        }
+    }
+    if (flag) send("Ok! Welcome!")
 }
