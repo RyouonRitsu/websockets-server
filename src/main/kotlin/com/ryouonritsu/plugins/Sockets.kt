@@ -27,16 +27,10 @@ fun Application.configureSockets() {
             val thisConnection = Connection(this)
             connections += thisConnection
             try {
-                send("You are connected! There are ${connections.count()} users here.")
+                send("You are connected! There are ${connections.count()} users here.\n" +
+                        "Please remember your ID is ${thisConnection.id}, others can use this to find you.")
                 setNick(thisConnection, connections)
-                for (frame in incoming) {
-                    frame as? Frame.Text ?: continue
-                    val receivedText = frame.readText()
-                    val textWithUsername = "[${thisConnection.nick ?: thisConnection.name}]: $receivedText"
-                    connections.forEach {
-                        it.session.send(textWithUsername)
-                    }
-                }
+                broadcast(thisConnection, connections)
             } catch (e: Exception) {
                 println(e.localizedMessage)
             } finally {
@@ -45,7 +39,46 @@ fun Application.configureSockets() {
             }
         }
         webSocket("/whisper") {
-
+            println("Adding user!")
+            val thisConnection = Connection(this)
+            val customizedConnections = Collections.synchronizedSet<Connection?>(LinkedHashSet())
+            connections += thisConnection
+            customizedConnections += thisConnection
+            try {
+                send("You are connected! There are ${connections.count()} users here.\n" +
+                        "Please remember your ID is ${thisConnection.id}, others can use this to find you.")
+                setNick(thisConnection, connections)
+                send("Now type the ID of the user or a part of his/her nick you want to whisper to." +
+                        "Enter '.complete' to end adding users.")
+                for (frame in incoming) {
+                    when (frame) {
+                        is Frame.Text -> {
+                            val receivedText = frame.readText()
+                            if (receivedText == ".complete") {
+                                send("Ok, now everything is set up. Type the message you want to send.")
+                                break
+                            } else {
+                                val targetConnection = connections.firstOrNull {
+                                    it.id == receivedText.toIntOrNull() || it.nick?.contains(receivedText) == true
+                                }
+                                if (targetConnection == null) {
+                                    send("User not found. Please try again!")
+                                } else {
+                                    customizedConnections += targetConnection
+                                    send("User ${targetConnection.nick ?: targetConnection.name} added!")
+                                }
+                            }
+                        }
+                        else -> send("Only text frames are accepted! Please try again!")
+                    }
+                }
+                broadcast(thisConnection, customizedConnections)
+            } catch (e: Exception) {
+                println(e.localizedMessage)
+            } finally {
+                println("Removing $thisConnection!")
+                connections -= thisConnection
+            }
         }
     }
 }
@@ -80,4 +113,15 @@ suspend fun DefaultWebSocketServerSession.setNick(thisConnection: Connection, co
         }
     }
     if (flag) send("Ok! Welcome!")
+}
+
+suspend fun DefaultWebSocketServerSession.broadcast(thisConnection: Connection, connections: MutableSet<Connection>) {
+    for (frame in incoming) {
+        frame as? Frame.Text ?: continue
+        val receivedText = frame.readText()
+        val textWithUsername = "[${thisConnection.nick ?: thisConnection.name}]: $receivedText"
+        connections.forEach {
+            it.session.send(textWithUsername)
+        }
+    }
 }
