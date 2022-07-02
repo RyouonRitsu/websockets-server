@@ -32,12 +32,18 @@ fun Application.configureSockets() {
                             "Please remember your ID is ${thisConnection.id}, others can use this to find you."
                 )
                 setNick(thisConnection, connections)
+                connections.filterNot { it == thisConnection }.forEach {
+                    it.session.send("sys: new user '${thisConnection.nick ?: thisConnection.id}' connected!")
+                }
                 broadcast(thisConnection, connections)
             } catch (e: Exception) {
                 println(e.localizedMessage)
             } finally {
                 println("Removing $thisConnection!")
                 connections -= thisConnection
+                connections.forEach {
+                    it.session.send("sys: user '${thisConnection.nick ?: thisConnection.id}' disconnected!")
+                }
             }
         }
         webSocket("/whisper") {
@@ -52,6 +58,9 @@ fun Application.configureSockets() {
                             "Please remember your ID is ${thisConnection.id}, others can use this to find you."
                 )
                 setNick(thisConnection, connections)
+                connections.filterNot { it == thisConnection }.forEach {
+                    it.session.send("sys: new user '${thisConnection.nick ?: thisConnection.id}' connected!")
+                }
                 send(
                     "Now type the ID of the user or a part of his/her nick you want to whisper to." +
                             "Enter '.complete' to end adding users."
@@ -80,12 +89,15 @@ fun Application.configureSockets() {
                         else -> send("Only text frames are accepted! Please try again!")
                     }
                 }
-                broadcast(thisConnection, customizedConnections, whisper = true)
+                broadcast(thisConnection, customizedConnections, whisper = true, basedConnections = connections)
             } catch (e: Exception) {
                 println(e.localizedMessage)
             } finally {
                 println("Removing $thisConnection!")
                 connections -= thisConnection
+                connections.forEach {
+                    it.session.send("sys: user '${thisConnection.nick ?: thisConnection.id}' disconnected!")
+                }
             }
         }
     }
@@ -125,25 +137,48 @@ suspend fun DefaultWebSocketServerSession.setNick(thisConnection: Connection, co
 
 suspend fun DefaultWebSocketServerSession.broadcast(
     thisConnection: Connection,
-    connections: MutableSet<Connection>,
-    whisper: Boolean = false
+    connections: Set<Connection>,
+    whisper: Boolean = false,
+    basedConnections: Set<Connection> = connections
 ) {
+    var replyMode = false
+    var replyTo: Connection? = null
     for (frame in incoming) {
         frame as? Frame.Text ?: continue
         val receivedText = frame.readText()
+        if (receivedText.matches(Regex("\\.re.+"))) {
+            replyMode = true
+            val target = receivedText.substringAfter(".re").trim()
+            val targetConnection = basedConnections.firstOrNull {
+                it.id == target.toIntOrNull() || it.nick?.contains(target) == true
+            }
+            when (targetConnection) {
+                null -> send("User not found. Please try again!")
+                else -> {
+                    send(
+                        "Now every your message will be sent to ${targetConnection.nick ?: targetConnection.name}, " +
+                                "enter '.over' to exit reply mode."
+                    )
+                    replyTo = targetConnection
+                }
+            }
+        }
+        if (receivedText == ".over") replyMode = false
         if (receivedText.matches(Regex("r.+:[\\s\\S]*"))) {
             val (target, message) = receivedText.substringAfter("r").split(":")
-            val targetConnection = connections.firstOrNull {
+            val targetConnection = basedConnections.firstOrNull {
                 it.id == target.toIntOrNull() || it.nick?.contains(target) == true
             }
             when (targetConnection) {
                 null -> send("User not found. Please try again!")
                 else -> targetConnection.session.send("*Whisper* [${thisConnection.nick ?: thisConnection.name}]: $message")
             }
+        } else if (replyMode) {
+            replyTo?.session?.send("*Whisper* [${thisConnection.nick ?: thisConnection.name}]: $receivedText")
         } else {
             val textWithUsername =
                 "${if (whisper) "*Whisper* " else ""}[${thisConnection.nick ?: thisConnection.name}]: $receivedText"
-            connections.forEach {
+            connections.intersect(basedConnections).forEach {
                 it.session.send(textWithUsername)
             }
         }
