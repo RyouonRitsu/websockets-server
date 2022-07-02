@@ -172,10 +172,16 @@ suspend fun DefaultWebSocketServerSession.broadcast(
             }
             when (targetConnection) {
                 null -> send("User not found. Please try again!")
-                else -> targetConnection.session.send("*Whisper* [${thisConnection.nick ?: thisConnection.name}]: $message")
+                else -> listOf(targetConnection, thisConnection).forEach {
+                    it.session.send("*Whisper* [${thisConnection.nick ?: thisConnection.name}]: $message")
+                }
             }
         } else if (replyMode) {
-            replyTo?.session?.send("*Whisper* [${thisConnection.nick ?: thisConnection.name}]: $receivedText")
+            replyTo?.let {
+                listOf(it, thisConnection).forEach { con ->
+                    con.session.send("*Whisper* [${thisConnection.nick ?: thisConnection.name}]: $receivedText")
+                }
+            }
         } else {
             val textWithUsername =
                 "${if (whisper) "*Whisper* " else ""}[${thisConnection.nick ?: thisConnection.name}]: $receivedText"
