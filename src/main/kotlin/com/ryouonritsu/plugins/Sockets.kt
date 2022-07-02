@@ -131,10 +131,21 @@ suspend fun DefaultWebSocketServerSession.broadcast(
     for (frame in incoming) {
         frame as? Frame.Text ?: continue
         val receivedText = frame.readText()
-        val textWithUsername =
-            "${if (whisper) "*Whisper* " else ""}[${thisConnection.nick ?: thisConnection.name}]: $receivedText"
-        connections.forEach {
-            it.session.send(textWithUsername)
+        if (receivedText.matches(Regex("r.+:[\\s\\S]*"))) {
+            val (target, message) = receivedText.substringAfter("r").split(":")
+            val targetConnection = connections.firstOrNull {
+                it.id == target.toIntOrNull() || it.nick?.contains(target) == true
+            }
+            when (targetConnection) {
+                null -> send("User not found. Please try again!")
+                else -> targetConnection.session.send("*Whisper* [${thisConnection.nick ?: thisConnection.name}]: $message")
+            }
+        } else {
+            val textWithUsername =
+                "${if (whisper) "*Whisper* " else ""}[${thisConnection.nick ?: thisConnection.name}]: $receivedText"
+            connections.forEach {
+                it.session.send(textWithUsername)
+            }
         }
     }
 }
