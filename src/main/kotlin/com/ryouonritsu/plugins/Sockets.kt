@@ -41,8 +41,13 @@ fun Application.configureSockets() {
                                     continue
                                 } else break
                             } else {
-                                thisConnection.nick = frame.readText()
-                                send("Everything is ready! welcome, ${thisConnection.nick}!")
+                                val nick = frame.readText()
+                                if (connections.none { it.nick == nick }) thisConnection.nick = frame.readText()
+                                else {
+                                    send("Nickname already taken! Please try another one.")
+                                    continue
+                                }
+                                send("Everything is ready! Welcome, ${thisConnection.nick}!")
                                 break
                             }
                         }
