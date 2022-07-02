@@ -62,7 +62,7 @@ fun Application.configureSockets() {
                     it.session.send("[system]: new user '${thisConnection.nick ?: thisConnection.id}' connected!")
                 }
                 send(
-                    "Now type the ID of the user or a part of his/her nick you want to whisper to. " +
+                    "Now type the ID of the user or a part of his/her nick you want to whisper to.\n" +
                             "Enter '.complete' to end adding users."
                 )
                 for (frame in incoming) {
@@ -160,6 +160,7 @@ suspend fun DefaultWebSocketServerSession.broadcast(
                                 "enter '.over' to exit reply mode."
                     )
                     replyTo = targetConnection
+                    continue
                 }
             }
         }
