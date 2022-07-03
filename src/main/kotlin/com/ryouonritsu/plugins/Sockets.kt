@@ -22,11 +22,18 @@ fun Application.configureSockets() {
         contentConverter = KotlinxWebsocketSerializationConverter(Json)
     }
     routing {
+        val users = Collections.synchronizedMap<Int, Connection?>(LinkedHashMap())
         val connections = Collections.synchronizedSet<Connection?>(LinkedHashSet())
         val groups = Collections.synchronizedSet<Group?>(LinkedHashSet())
-        webSocket("/chat") {
+        webSocket("/") {
             println("Adding user!")
             val thisConnection = Connection(this)
+            send("${thisConnection.id}")
+            users[thisConnection.id] = thisConnection
+        }
+        webSocket("/chat") {
+            val thisConnection = users[getUserId()]!!
+            thisConnection.session = this
             connections += thisConnection
             try {
                 pre(thisConnection, connections)
@@ -42,8 +49,8 @@ fun Application.configureSockets() {
             }
         }
         webSocket("/whisper") {
-            println("Adding user!")
-            val thisConnection = Connection(this)
+            val thisConnection = users[getUserId()]!!
+            thisConnection.session = this
             val customizedConnections = mutableSetOf(thisConnection)
             connections += thisConnection
             try {
@@ -51,7 +58,7 @@ fun Application.configureSockets() {
                 send(
                     "- Now type the ID of the user or a part of his/her nick you want to whisper to. -\n" +
                             "- Enter '.complete' to end adding users. -\n" +
-                            "- Or Enter '.id:[Group ID]' to join a group. -"
+                            "- Or Enter '.id[Group ID]' to join a group. -"
                 )
                 var group: Group? = null
                 for (frame in incoming) {
@@ -59,12 +66,12 @@ fun Application.configureSockets() {
                         is Frame.Text -> {
                             val receivedText = frame.readText()
                             if (receivedText == ".complete") {
-                                group = Group().apply { members += customizedConnections }
+                                group = Group(customizedConnections)
                                 groups += group
                                 send("- Ok, now everything is set up. Type the message you want to send. -")
                                 break
-                            } else if (receivedText.startsWith(".id:")) {
-                                val groupId = receivedText.substringAfter(".id:")
+                            } else if (receivedText.startsWith(".id")) {
+                                val groupId = receivedText.substringAfter(".id").trim()
                                 group = groups.firstOrNull { it.id == groupId.toIntOrNull() }
                                 if (group == null) {
                                     send("- Group with ID '$groupId' does not exist. Please try again! -")
@@ -111,6 +118,16 @@ fun Application.configureSockets() {
     }
 }
 
+suspend fun DefaultWebSocketServerSession.getUserId(): Int {
+    var userId = -1
+    for (frame in incoming) {
+        frame as? Frame.Text ?: continue
+        userId = frame.readText().toIntOrNull() ?: continue
+        break
+    }
+    return userId
+}
+
 suspend fun DefaultWebSocketServerSession.pre(thisConnection: Connection, connections: MutableSet<Connection>) {
     send(
         "- You are connected! There are ${connections.count()} users here. -\n" +
@@ -153,7 +170,7 @@ suspend fun DefaultWebSocketServerSession.setNick(thisConnection: Connection, co
             }
         }
     }
-    if (flag) send("- Ok! Welcome! -")
+    if (flag) send("- Ok! Welcome, ${thisConnection.nick ?: thisConnection.id}! -")
 }
 
 suspend fun DefaultWebSocketServerSession.broadcast(
@@ -169,7 +186,7 @@ suspend fun DefaultWebSocketServerSession.broadcast(
         frame as? Frame.Text ?: continue
         val receivedText = frame.readText()
         if (receivedText.matches(Regex("\\.re.+"))) {
-            replyMode = true
+            var failed = false
             receivedText.substringAfter(".re").trim().split(" ").forEach { target ->
                 val targetConnection = basedConnections.firstOrNull {
                     it.id == target.toIntOrNull() || it.nick?.contains(target) == true
@@ -177,6 +194,7 @@ suspend fun DefaultWebSocketServerSession.broadcast(
                 when (targetConnection) {
                     null -> {
                         send("- '$target' not found. Please try again! -")
+                        failed = true
                         return@forEach
                     }
                     else -> {
@@ -184,12 +202,14 @@ suspend fun DefaultWebSocketServerSession.broadcast(
                     }
                 }
             }
-            send(
-                "- Now every your message will be sent to ${
-                    replyTo.filterNot { it == thisConnection }.joinToString(", ") { it.nick ?: it.name }
-                } -" +
-                        "- Enter '.over' to exit reply mode. -"
-            )
+            if (!failed) {
+                replyMode = true
+                send(
+                    "- Now every your message will be sent to ${
+                        replyTo.filterNot { it == thisConnection }.joinToString(", ") { it.nick ?: it.name }
+                    } -\n- Enter '.over' to exit reply mode. -"
+                )
+            } else replyTo.clear()
             continue
         }
         if (receivedText == ".over") {
