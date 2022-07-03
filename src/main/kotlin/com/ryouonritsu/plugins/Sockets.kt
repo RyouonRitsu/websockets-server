@@ -133,7 +133,10 @@ suspend fun DefaultWebSocketServerSession.pre(thisConnection: Connection, connec
         "- You are connected! There are ${connections.count()} users here. -\n" +
                 "- Please remember your ID is ${thisConnection.id}, others can use this to find you. -\n" +
                 "- Using 'r[User ID or a part of his/her nick]:[message]' to reply a user. -\n" +
-                "- Using '.re[User ID or a part of his/her nick] [...]' to open reply mode. -"
+                "- Using '.re[User ID or a part of his/her nick] [...]' to open reply mode. -\n" +
+                "- Using '.ban[block word]' to not receive messages containing the word. -\n" +
+                "- Using '.unban[block word]' to re-receive messages containing the word. -\n" +
+                "- By adding '.world' after the above two commands to not receive or re-receive the messages from chat channel. -"
     )
     setNick(thisConnection, connections)
     connections.filterNot { it == thisConnection }.forEach {
