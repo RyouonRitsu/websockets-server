@@ -204,6 +204,13 @@ suspend fun DefaultWebSocketServerSession.broadcast(
                 }
             }
             if (!failed) {
+                if (replyTo.isEmpty()) {
+                    send("- No one to reply to. Please try again! -")
+                    continue
+                } else if (replyTo.count() == 1 && replyTo.first() == thisConnection) {
+                    send("- It is unnecessary to reply to yourself. Please try again! -")
+                    continue
+                }
                 replyMode = true
                 send(
                     "- Now every your message will be sent to ${
@@ -227,6 +234,7 @@ suspend fun DefaultWebSocketServerSession.broadcast(
             }
             when (targetConnection) {
                 null -> send("- User not found. Please try again! -")
+                thisConnection -> send("- It is unnecessary to reply to yourself. Please try again! -")
                 else -> listOf(targetConnection, thisConnection).forEach {
                     it.session.send("*Reply* [${thisConnection.nick ?: thisConnection.name}]: ${message.trim()}")
                 }
