@@ -72,7 +72,7 @@ fun Application.configureSockets() {
                                 break
                             } else if (receivedText.startsWith(".id")) {
                                 val groupId = receivedText.substringAfter(".id").trim()
-                                group = groups.firstOrNull { it.id == groupId.toIntOrNull() || it.name == "g$groupId" }
+                                group = groups.firstOrNull { it.id == groupId.toIntOrNull() || it.name == groupId }
                                 if (group == null) {
                                     send("- Group with ID '$groupId' does not exist. Please try again! -")
                                     continue
