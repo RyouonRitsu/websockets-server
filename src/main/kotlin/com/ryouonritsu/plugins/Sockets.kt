@@ -72,7 +72,7 @@ fun Application.configureSockets() {
                                 break
                             } else if (receivedText.startsWith(".id")) {
                                 val groupId = receivedText.substringAfter(".id").trim()
-                                group = groups.firstOrNull { it.id == groupId.toIntOrNull() }
+                                group = groups.firstOrNull { it.id == groupId.toIntOrNull() || it.name == "g$groupId" }
                                 if (group == null) {
                                     send("- Group with ID '$groupId' does not exist. Please try again! -")
                                     continue
@@ -83,7 +83,7 @@ fun Application.configureSockets() {
                                 }
                             } else {
                                 val targetConnection = connections.firstOrNull {
-                                    it.id == receivedText.toIntOrNull() || it.nick?.contains(receivedText) == true
+                                    it.nick?.contains(receivedText) == true || it.id == receivedText.toIntOrNull()
                                 }
                                 when (targetConnection) {
                                     null -> send("- User not found. Please try again! -")
@@ -189,7 +189,7 @@ suspend fun DefaultWebSocketServerSession.broadcast(
             var failed = false
             receivedText.substringAfter(".re").trim().split(" ").forEach { target ->
                 val targetConnection = basedConnections.firstOrNull {
-                    it.id == target.toIntOrNull() || it.nick?.contains(target) == true
+                    it.nick?.contains(target) == true || it.id == target.toIntOrNull()
                 }
                 when (targetConnection) {
                     null -> {
@@ -221,7 +221,7 @@ suspend fun DefaultWebSocketServerSession.broadcast(
         if (receivedText.matches(Regex("r.+:[\\s\\S]*"))) {
             val (target, message) = receivedText.substringAfter("r").split(":")
             val targetConnection = basedConnections.firstOrNull {
-                it.id == target.toIntOrNull() || it.nick?.contains(target) == true
+                it.nick?.contains(target) == true || it.id == target.toIntOrNull()
             }
             when (targetConnection) {
                 null -> send("- User not found. Please try again! -")

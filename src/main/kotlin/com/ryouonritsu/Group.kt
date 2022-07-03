@@ -8,5 +8,5 @@ class Group(val members: MutableSet<Connection>) {
     }
 
     val id = lastId.getAndIncrement()
-    val name = "user$id"
+    val name = "g$id"
 }
