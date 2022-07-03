@@ -1,7 +1,9 @@
 package com.ryouonritsu
 
+import com.ryouonritsu.plugins.configureRouting
+import com.ryouonritsu.plugins.configureSecurity
+import com.ryouonritsu.plugins.configureSockets
 import io.ktor.server.application.*
-import com.ryouonritsu.plugins.*
 
 fun main(args: Array<String>): Unit =
     io.ktor.server.netty.EngineMain.main(args)

@@ -3,15 +3,13 @@ package com.ryouonritsu.plugins
 import com.ryouonritsu.Connection
 import com.ryouonritsu.Group
 import io.ktor.serialization.kotlinx.*
+import io.ktor.server.application.*
+import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
-import java.time.Duration
-import io.ktor.server.application.*
-import io.ktor.server.response.*
-import io.ktor.server.request.*
-import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
-import java.util.Collections
+import java.time.Duration
+import java.util.*
 
 fun Application.configureSockets() {
     install(WebSockets) {
