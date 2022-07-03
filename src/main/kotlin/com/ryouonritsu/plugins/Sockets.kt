@@ -184,7 +184,7 @@ suspend fun DefaultWebSocketServerSession.broadcast(
     basedConnections: Set<Connection> = connections
 ) {
     var replyMode = false
-    val replyTo = mutableSetOf(thisConnection)
+    val replyTo = mutableSetOf<Connection>()
     for (frame in incoming) {
         frame as? Frame.Text ?: continue
         val receivedText = frame.readText()
@@ -209,9 +209,10 @@ suspend fun DefaultWebSocketServerSession.broadcast(
                 replyMode = true
                 send(
                     "- Now every your message will be sent to ${
-                        replyTo.filterNot { it == thisConnection }.joinToString(", ") { it.nick ?: it.name }
+                        replyTo.joinToString(", ") { it.nick ?: it.name }
                     } -\n- Enter '.over' to exit reply mode. -"
                 )
+                replyTo += thisConnection
             } else replyTo.clear()
             continue
         }
